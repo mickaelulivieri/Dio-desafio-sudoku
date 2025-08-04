@@ -1,45 +1,80 @@
 package br.com.dio.ui.custom.screen;
 
-import br.com.dio.Main;
+import br.com.dio.model.Space;
 import br.com.dio.service.BoardService;
+import br.com.dio.service.EventEnum;
+import br.com.dio.service.NotifierService;
+import br.com.dio.ui.custom.button.CheckGameStatusButton;
 import br.com.dio.ui.custom.button.FinishGameButton;
 import br.com.dio.ui.custom.button.ResetButton;
 import br.com.dio.ui.custom.frame.MainFrame;
+import br.com.dio.ui.custom.input.NumberText;
 import br.com.dio.ui.custom.panel.MainPanel;
+import br.com.dio.ui.custom.panel.SudokuSector;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-
-import static br.com.dio.model.GameStatusEnum.*;
 
 public class MainScreen {
 
     private final static Dimension dimension = new Dimension(600, 600);
 
     private final BoardService boardService;
+    private final NotifierService notifierService;
 
     private JButton checkGameStatusButton;
     private JButton finishGameButton;
     private JButton resetButton;
 
-    public MainScreen(final Map<String, String> gameConfig){
+    public MainScreen(final Map<String, String> gameConfig) {
         this.boardService = new BoardService(gameConfig);
+        this.notifierService = new NotifierService();
     }
 
-    public void buildMainScreen(){
+    public void buildMainScreen() {
         JPanel mainPanel = new MainPanel(dimension);
         JFrame mainFrame = new MainFrame(dimension, mainPanel);
+        for (int r = 0; r < 9; r += 3) {
+            var endRow = r + 2;
+            for (int c = 0; c < 9; c += 3) {
+                var endCol = c + 2;
+                var spaces = getSpacesFromSector(boardService.getSpaces(), r, endRow, c, endCol);
+                JPanel sector = generateSection(spaces);
+                mainPanel.add(sector); // Corrigido: estava chamando generateSection(spaces) duas vezes
+            }
+        }
+
         addResetButton(mainPanel);
-        addShowGameStatusButton(mainPanel);
+        addCheckGameStatusButton(mainPanel); // Corrigido: chamada correta do método
         addFinishGameButton(mainPanel);
         mainFrame.revalidate();
         mainFrame.repaint();
     }
 
+    private List<Space> getSpacesFromSector(List<List<Space>> spaces,
+                                            final int initRow, final int endRow,
+                                            final int initCol, final int endCol) {
+        List<Space> spaceSector = new ArrayList<>();
+        for (int r = initRow; r <= endRow; r++) {
+            for (int c = initCol; c <= endCol; c++) {
+                spaceSector.add(spaces.get(r).get(c));
+            }
+        }
+        return spaceSector;
+    }
+
+    private JPanel generateSection(final List<Space> spaces) {
+        List<NumberText> fields = new ArrayList<>(spaces.stream().map(NumberText::new).toList());
+        fields.forEach(t -> notifierService.subscriber(EventEnum.CLEAR_SPACE, t));
+        return new SudokuSector(fields);
+    }
+
     private void addFinishGameButton(JPanel mainPanel) {
-         finishGameButton = new FinishGameButton(e -> {
-            if (boardService.gameIsFinished()){
+        finishGameButton = new FinishGameButton(e -> {
+            if (boardService.gameIsFinished()) {
                 JOptionPane.showMessageDialog(null, "Parabéns você concluiu o jogo");
                 resetButton.setEnabled(false);
                 checkGameStatusButton.setEnabled(false);
@@ -52,8 +87,8 @@ public class MainScreen {
         mainPanel.add(finishGameButton);
     }
 
-    private void addShowGameStatusButton(JPanel mainPanel) {
-        JButton finishGameButton = new FinishGameButton(e -> {
+    private void addCheckGameStatusButton(JPanel mainPanel) {
+        checkGameStatusButton = new CheckGameStatusButton(e -> { // Corrigido: agora atribui ao campo correto
             var hasErrors = boardService.hasErrors();
             var gameStatus = boardService.getStatus();
             var message = switch (gameStatus) {
@@ -65,18 +100,20 @@ public class MainScreen {
             message += hasErrors ? " e contém erros" : " e não contém erros";
             JOptionPane.showMessageDialog(null, message);
         });
-        mainPanel.add(finishGameButton);    }
+        mainPanel.add(checkGameStatusButton);
+    }
 
     private void addResetButton(JPanel mainPanel) {
-         resetButton = new ResetButton(e ->{
+        resetButton = new ResetButton(e -> {
             var dialogResult = JOptionPane.showConfirmDialog(
                     null, "Deseja realmente reiniciar o jogo?",
                     "Limpar o jogo",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.QUESTION_MESSAGE
             );
-            if (dialogResult == 0){
+            if (dialogResult == JOptionPane.YES_OPTION) { // Corrigido: uso de constante clara
                 boardService.reset();
+                notifierService.notify(EventEnum.CLEAR_SPACE);
             }
         });
         mainPanel.add(resetButton);
