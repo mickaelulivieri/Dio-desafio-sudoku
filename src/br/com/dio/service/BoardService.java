@@ -1,6 +1,7 @@
 package br.com.dio.service;
 
 import br.com.dio.model.Board;
+import br.com.dio.model.GameStatusEnum;
 import br.com.dio.model.Space;
 
 import java.util.ArrayList;
@@ -33,7 +34,6 @@ public class BoardService {
         return board.gameIsFinished();
     }
 
-    // Agora o método está dentro da classe e com return correto
     private List<List<Space>> initBoard(final Map<String, String> gameConfig) {
         List<List<Space>> spaces = new ArrayList<>();
         for (int i = 0; i < BOARD_LIMIT; i++) {
@@ -47,5 +47,9 @@ public class BoardService {
             }
         }
         return spaces;
+    }
+
+    public GameStatusEnum getStatus(){
+        return board.getStatus();
     }
 }

@@ -15,4 +15,5 @@ public enum GameStatusEnum {
     public String getLabel() {
         return label;
     }
+
 }
